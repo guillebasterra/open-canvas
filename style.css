@@ -53,8 +53,8 @@ body {
   padding: 0.75rem;
   box-sizing: border-box;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  justify-content: space-between;
   overflow: hidden;
 }
 
@@ -64,4 +64,13 @@ body {
   line-height: 0.9rem;
   white-space: pre;
   text-align: left;
+  flex-grow: 1;
+}
+
+.meta {
+  border-top: 1px solid #000;
+  margin-top: 0.5rem;
+  padding-top: 0.25rem;
+  font-size: 0.7rem;
+  color: #444;
 }

@@ -1,10 +1,10 @@
 const content = document.getElementById("content");
 const links = document.querySelectorAll("nav a");
 
-// --- Replace these with your repo details ---
-const owner = "guillebasterra";
-const repo = "open-canvas";
-// --------------------------------------------
+// --- Replace these with your repo info ---
+const owner = "your-github-username";
+const repo = "your-repo-name";
+// ------------------------------------------
 
 window.addEventListener("hashchange", renderPage);
 renderPage();
@@ -12,12 +12,8 @@ renderPage();
 function renderPage() {
   const hash = location.hash || "#latest";
   links.forEach(l => l.classList.toggle("active", l.getAttribute("href") === hash));
-
-  if (hash === "#collaborative") {
-    renderCollaborative();
-  } else {
-    renderLatest();
-  }
+  if (hash === "#collaborative") renderCollaborative();
+  else renderLatest();
 }
 
 async function renderLatest() {
@@ -26,14 +22,35 @@ async function renderLatest() {
     const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/ascii`);
     const files = await response.json();
 
-    // sort by last modified date (newest first)
-    const sorted = files.sort((a, b) => new Date(b.git_url) - new Date(a.git_url));
+    // Iterate through files and fetch commit metadata
+    const items = [];
+    for (const file of files) {
+      const commitsUrl = `https://api.github.com/repos/${owner}/${repo}/commits?path=${file.path}&per_page=1`;
+      const [commit] = await fetch(commitsUrl).then(r => r.json());
+      if (!commit) continue;
 
-    for (const file of sorted.slice(0, 9)) {
-      const text = await fetch(file.download_url).then(r => r.text());
+      const art = await fetch(file.download_url).then(r => r.text());
+      items.push({
+        art,
+        title: commit.commit.message || "Untitled",
+        author: commit.author?.login || "anonymous",
+        date: new Date(commit.commit.author.date)
+      });
+    }
+
+    // Sort newest first
+    items.sort((a, b) => b.date - a.date);
+
+    for (const item of items.slice(0, 9)) {
       const block = document.createElement("div");
       block.className = "ascii-block";
-      block.innerHTML = `<pre>${escapeHTML(text)}</pre>`;
+      block.innerHTML = `
+        <pre>${escapeHTML(item.art)}</pre>
+        <div class="meta">
+          ${escapeHTML(item.title)}<br>
+          by @${escapeHTML(item.author)} — ${item.date.toUTCString()}
+        </div>
+      `;
       content.appendChild(block);
     }
   } catch (err) {
