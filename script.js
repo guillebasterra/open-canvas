@@ -2,8 +2,8 @@ const content = document.getElementById("content");
 const links = document.querySelectorAll("nav a");
 
 // --- Replace these with your repo info ---
-const owner = "your-github-username";
-const repo = "your-repo-name";
+const owner = "guillebasterra";
+const repo = "open-canvas";
 // ------------------------------------------
 
 window.addEventListener("hashchange", renderPage);
