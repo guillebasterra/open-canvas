@@ -1,0 +1,60 @@
+name: Archive and update ledger
+on:
+  push:
+    branches: [main]
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare folders
+        run: mkdir -p archive/$(date +%Y-%m)
+
+      - name: Process ASCII files
+        run: |
+          cd ascii
+          for f in $(ls); do
+            HASH=$(sha256sum "$f" | cut -d ' ' -f1)
+            AUTHOR=$(git log -1 --pretty=format:'%an' -- "$f")
+            USER=$(git log -1 --pretty=format:'%ae' | cut -d@ -f1)
+            TITLE=$(git log -1 --pretty=format:'%s' -- "$f")
+            DATE=$(git log -1 --pretty=format:'%aI' -- "$f")
+            COMMIT=$(git log -1 --pretty=format:'%H' -- "$f")
+
+            # Skip if hash already exists
+            grep -q "$HASH" ../archive/ledger.jsonl 2>/dev/null && continue
+
+            echo "{\"id\":\"$(printf %05d $(($(wc -l < ../archive/ledger.jsonl 2>/dev/null)+1)))\",\"title\":\"$TITLE\",\"author\":\"$USER\",\"commit\":\"$COMMIT\",\"date\":\"$DATE\",\"hash\":\"sha256:$HASH\",\"archive_path\":\"archive/$(date +%Y-%m)/$f\"}" >> ../archive/ledger.jsonl
+
+            cp "$f" ../archive/$(date +%Y-%m)/"$f"
+          done
+
+      - name: Prune old ASCII files
+        run: |
+          cd ascii
+          ls -t | tail -n +11 | xargs -r rm
+
+      - name: Update latest.json
+        run: |
+          cd $GITHUB_WORKSPACE
+          echo "[" > archive/latest.json
+          for f in $(ls -t ascii | head -n 10); do
+            TITLE=$(git log -1 --pretty=format:'%s' -- ascii/$f)
+            AUTHOR=$(git log -1 --pretty=format:'%ae' | cut -d@ -f1)
+            DATE=$(git log -1 --pretty=format:'%aI' -- ascii/$f)
+            echo "{\"title\":\"$TITLE\",\"author\":\"$AUTHOR\",\"date\":\"$DATE\",\"url\":\"https://raw.githubusercontent.com/${{ github.repository }}/main/ascii/$f\"}," >> archive/latest.json
+          done
+          sed -i '$ s/,$//' archive/latest.json
+          echo "]" >> archive/latest.json
+
+      - name: Commit and push
+        run: |
+          git config user.name "ascii-bot"
+          git config user.email "ascii-bot@users.noreply.github.com"
+          git add archive ascii
+          git commit -m "archive + prune ascii"
+          git push
+
